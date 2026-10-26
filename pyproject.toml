@@ -18,4 +18,5 @@ exclude_dirs = ["tests", ".venv"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]   # coloca a raiz do projeto no sys.path para `import app` funcionar nos testes
 addopts = "-q --cov=app --cov-report=term-missing --cov-fail-under=80"

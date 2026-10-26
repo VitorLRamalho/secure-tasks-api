@@ -33,9 +33,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
-    tasks: Mapped[list["Task"]] = relationship(
-        back_populates="owner", cascade="all, delete-orphan"
-    )
+    tasks: Mapped[list["Task"]] = relationship(back_populates="owner", cascade="all, delete-orphan")
 
 
 class Task(Base):
