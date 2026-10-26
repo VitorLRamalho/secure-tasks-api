@@ -225,3 +225,4 @@ data/
 htmlcov/
 zap/*.html
 zap/*.json
+.vscode/
