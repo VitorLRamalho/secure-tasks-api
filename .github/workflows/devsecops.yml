@@ -157,3 +157,89 @@ jobs:
         with:
           name: sbom
           path: sbom.cdx.json
+
+  dast:
+    name: DAST (OWASP ZAP, autenticado)
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4 (mesma major do upload-artifact)
+        with:
+          name: image
+      - name: Subir a imagem já verificada
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}:ci"
+          docker load -i image.tar
+          docker run -d --name api -p 8000:8000 \
+            -e APP_JWT_SECRET="$(openssl rand -hex 32)" "$IMAGE"
+          for _ in $(seq 1 30); do
+            curl -fs http://localhost:8000/health && break
+            sleep 1
+          done
+      - name: Criar usuário de scan e obter token
+        id: auth
+        run: |
+          curl -fs -X POST http://localhost:8000/auth/register \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"zap@example.com","password":"ZapScannerPassword2026"}'
+          TOKEN=LOGIN=$(curl -fs -X POST http://localhost:8000/auth/login \
+            -d 'username=zap@example.com&password=ZapScannerPassword2026')
+          # sem pipe de curl para interpretador: o Semgrep (gha-curl-pipe-shell) leria como "curl | bash"
+          TOKEN=$(python3 -c 'import sys, json; print(json.loads(sys.argv[1])["access_token"])' "$LOGIN")
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+      - name: ZAP API scan (falha só nas regras marcadas como FAIL)
+        env:
+          ZAP_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          chmod a+w zap
+          # --network host + localhost: no runner o Docker é nativo (local é host.docker.internal)
+          docker run --rm --network host -e ZAP_TOKEN -v "$PWD/zap:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:stable zap-api-scan.py \
+            -t http://localhost:8000/openapi.json -f openapi \
+            -c api-scan.conf --hook /zap/wrk/auth-hook.py -I \
+            -r zap-report.html -J zap-report.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: zap-report
+          path: zap/zap-report.*
+      - name: Logs da aplicação (diagnóstico)
+        if: always()
+        run: docker logs api
+
+  release:
+    name: Publicar e assinar (só na main)
+    runs-on: ubuntu-latest
+    needs: dast
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write     # push no GHCR
+      id-token: write     # OIDC: assinatura keyless com Cosign, sem chave guardada
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: image
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: sbom
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5 # v3
+      - name: Push da imagem verificada, assinatura e atestado do SBOM
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          docker load -i image.tar
+          docker tag "$IMAGE:ci" "$IMAGE:$GITHUB_SHA"
+          docker tag "$IMAGE:ci" "$IMAGE:latest"
+          docker push "$IMAGE:$GITHUB_SHA"
+          docker push "$IMAGE:latest"
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE:$GITHUB_SHA" | cut -d@ -f2)
+          cosign sign --yes "$IMAGE@$DIGEST"
+          cosign attest --yes --type cyclonedx --predicate sbom.cdx.json "$IMAGE@$DIGEST"
+          echo "Imagem publicada e assinada: $IMAGE@$DIGEST" >> "$GITHUB_STEP_SUMMARY"
