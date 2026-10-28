@@ -183,7 +183,7 @@ jobs:
           curl -fs -X POST http://localhost:8000/auth/register \
             -H 'Content-Type: application/json' \
             -d '{"email":"zap@example.com","password":"ZapScannerPassword2026"}'
-          TOKEN=LOGIN=$(curl -fs -X POST http://localhost:8000/auth/login \
+          LOGIN=$(curl -fs -X POST http://localhost:8000/auth/login \
             -d 'username=zap@example.com&password=ZapScannerPassword2026')
           # sem pipe de curl para interpretador: o Semgrep (gha-curl-pipe-shell) leria como "curl | bash"
           TOKEN=$(python3 -c 'import sys, json; print(json.loads(sys.argv[1])["access_token"])' "$LOGIN")
