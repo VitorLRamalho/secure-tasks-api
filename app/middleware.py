@@ -10,6 +10,7 @@ SECURITY_HEADERS = {
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
     "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
     "Cache-Control": "no-store",
+    "Cross-Origin-Resource-Policy": "same-origin",
 }
 
 

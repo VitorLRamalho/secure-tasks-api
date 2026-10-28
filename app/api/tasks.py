@@ -1,12 +1,17 @@
-from fastapi import APIRouter, HTTPException, Response, status
+from typing import Annotated
+
+from fastapi import APIRouter, HTTPException, Path, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
 
 from app.db import DbDep, Task, User
 from app.security import UserDep
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
+
+TaskId = Annotated[int, Path(ge=1, le=2**63 - 1)]
 
 
 class TaskIn(BaseModel):
@@ -42,16 +47,22 @@ def create_task(data: TaskIn, user: UserDep, db: DbDep) -> Task:
 
 
 @router.put("/{task_id}", response_model=TaskOut)
-def update_task(task_id: int, data: TaskIn, user: UserDep, db: DbDep) -> Task:
+def update_task(task_id: TaskId, data: TaskIn, user: UserDep, db: DbDep) -> Task:
     task = _get_owned_task(task_id, user, db)
     task.title, task.done = data.title, data.done
-    db.commit()
-    db.refresh(task)
+    try:
+        db.commit()
+        db.refresh(task)
+    except StaleDataError:
+        # Encontrado pelo DAST: outra requisição apagou a tarefa entre a leitura e a gravação.
+        # Para o cliente, a tarefa não existe: 404, nunca 500.
+        db.rollback()
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Task not found") from None
     return task
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_task(task_id: int, user: UserDep, db: DbDep) -> Response:
+def delete_task(task_id: TaskId, user: UserDep, db: DbDep) -> Response:
     db.delete(_get_owned_task(task_id, user, db))
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

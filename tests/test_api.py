@@ -21,6 +21,7 @@ def test_security_headers_present(client):
     assert headers["x-frame-options"] == "DENY"
     assert "default-src 'none'" in headers["content-security-policy"]
     assert headers["cache-control"] == "no-store"
+    assert headers["cross-origin-resource-policy"] == "same-origin"
 
 
 def test_docs_disabled_outside_dev(client):
@@ -98,3 +99,26 @@ def test_password_over_72_bytes_is_rejected(client):
     _signup_and_login(client, "ok@example.com")
     r = client.post("/auth/login", data={"username": "ok@example.com", "password": long_pw})
     assert r.status_code == 401  # tratado como credencial inválida, nunca erro 500
+
+
+def test_task_id_out_of_range_is_422(client):
+    """Encontrado pelo DAST: id acima de 64 bits estourava no SQLite e virava 500."""
+    vitor = _signup_and_login(client, "vitor@example.com")
+    assert client.delete("/tasks/99999999999999999999", headers=vitor).status_code == 422
+    assert client.delete("/tasks/0", headers=vitor).status_code == 422
+
+
+def test_update_of_task_deleted_concurrently_is_404(client, monkeypatch):
+    """Encontrado pelo DAST: DELETE e PUT simultâneos no mesmo id viravam 500 (StaleDataError)."""
+    from sqlalchemy.orm import Session
+    from sqlalchemy.orm.exc import StaleDataError
+
+    ana = _signup_and_login(client, "ana@example.com")
+    task_id = client.post("/tasks", json={"title": "corrida"}, headers=ana).json()["id"]
+
+    def commit_after_concurrent_delete(self):
+        raise StaleDataError("UPDATE expected 1 row, 0 matched")
+
+    monkeypatch.setattr(Session, "commit", commit_after_concurrent_delete)
+    response = client.put(f"/tasks/{task_id}", json={"title": "x"}, headers=ana)
+    assert response.status_code == 404
