@@ -1,0 +1,2 @@
+# Accepted Trivy findings. One per line: CVE — reason — review date (YYYY-MM-DD).
+# Nothing is ignored silently; every entry has an owner and a review date.

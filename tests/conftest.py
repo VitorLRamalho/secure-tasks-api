@@ -18,3 +18,16 @@ def client():
     Base.metadata.create_all(engine)
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture()
+def client_factory():
+    from app.db import Base, engine
+    from app.main import app
+
+    def make():
+        Base.metadata.drop_all(engine)
+        Base.metadata.create_all(engine)
+        return TestClient(app)
+
+    return make
