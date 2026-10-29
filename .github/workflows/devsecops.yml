@@ -38,6 +38,10 @@ jobs:
       - run: pip install --require-hashes -r requirements.txt -r requirements-dev.txt
       - run: ruff check . && ruff format --check .
       - run: pytest
+      - name: Fuzz input validation (atheris, 30 s)
+        run: |
+          mkdir -p fuzz/corpus
+          python fuzz/fuzz_models.py -max_total_time=30 fuzz/corpus
 
   sast:
     name: SAST (Semgrep + Bandit)
@@ -50,9 +54,13 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
-      - run: pip install --require-hashes -r requirements-sast.txt
-      - name: Semgrep (OWASP Top 10, Python, segredos, Dockerfile)
+      - run: pip install --require-hashes -r requirements.txt -r requirements-dev.txt   # bandit, com hash
+      - name: Semgrep (OWASP Top 10, Python, segredos, Dockerfile) via imagem oficial
+        # Semgrep trava deps com CVE (mcp 1.29.0, otel 1.37); consumimos a distribuição do vendor,
+        # pinada por digest, em vez de vendorizar a árvore dele nos nossos requirements.
         run: >
+          docker run --rm -v "$PWD:/src" --workdir /src
+          docker.io/semgrep/semgrep:1.182.1@sha256:451b3d875c00dac7ed5db5293e584a07de11449a409c10b3c2d2652f429630b6
           semgrep scan --metrics=off --error
           --config p/owasp-top-ten --config p/python
           --config p/secrets --config p/dockerfile
@@ -196,7 +204,7 @@ jobs:
           chmod a+w zap
           # --network host + localhost: no runner o Docker é nativo (local é host.docker.internal)
           docker run --rm --network host -e ZAP_TOKEN -v "$PWD/zap:/zap/wrk:rw" \
-            ghcr.io/zaproxy/zaproxy:stable zap-api-scan.py \
+            ghcr.io/zaproxy/zaproxy@sha256:030d3df57735dacbb83464854758e674dd9ad01d79d12a129a8e58b1fd384238 zap-api-scan.py \
             -t http://localhost:8000/openapi.json -f openapi \
             -c api-scan.conf --hook /zap/wrk/auth-hook.py -I \
             -r zap-report.html -J zap-report.json

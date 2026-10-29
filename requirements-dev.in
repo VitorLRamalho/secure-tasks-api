@@ -8,3 +8,4 @@ pip-audit
 pip-tools
 pre-commit
 hypothesis
+atheris
