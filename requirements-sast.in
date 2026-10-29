@@ -1,0 +1,2 @@
+semgrep
+bandit[toml,sarif]

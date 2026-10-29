@@ -7,3 +7,4 @@ bandit[toml,sarif]
 pip-audit
 pip-tools
 pre-commit
+hypothesis
