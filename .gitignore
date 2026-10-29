@@ -226,3 +226,8 @@ htmlcov/
 zap/*.html
 zap/*.json
 .vscode/
+
+# fuzzing (atheris)
+fuzz/corpus/
+crash-*
+timeout-*
