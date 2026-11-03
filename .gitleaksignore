@@ -1,0 +1,7 @@
+# Fingerprints of findings acknowledged on purpose. One per line: commit:file:rule:line
+# Every entry needs a reason and a date; nothing is ignored silently.
+#
+# 2026-11-03 - demo PR: AWS-format key generated at random for the "pipeline blocks an
+# insecure change" demonstration; never a valid credential. A real key would be rotated
+# before this line is added.
+6477b826c4c2ddb673930d96d10a54bf90813dd4:app/config.py:aws-access-token:20

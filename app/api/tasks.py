@@ -66,3 +66,10 @@ def delete_task(task_id: TaskId, user: UserDep, db: DbDep) -> Response:
     db.delete(_get_owned_task(task_id, user, db))
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/search", response_model=list[TaskOut])
+def search_tasks(q: str, user: UserDep, db: DbDep) -> list[Task]:
+    pattern = f"%{q}%"  # o valor vira parâmetro; o SQL nunca é montado com o input
+    stmt = select(Task).where(Task.owner_id == user.id, Task.title.like(pattern))
+    return list(db.scalars(stmt))
