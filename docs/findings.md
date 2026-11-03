@@ -1,6 +1,6 @@
 # Findings log
 
-Everything the pipeline (or the process around it) has caught, newest first.
+Everything the pipeline (or the process around it) has caught, in the order they were found.
 One line per finding: what was found, how severe, what was decided and where the evidence is.
 Accepted risks stay here with a justification; nothing is silently ignored.
 
@@ -28,3 +28,4 @@ Severity follows the tool's own rating; "—" means a process finding with no CV
 | 2026-10-28 | DAST | OWASP ZAP | Race between concurrent `DELETE` and `PUT` on the same task id returned 500 (`StaleDataError` on commit): read-then-write without handling the lost row | MEDIUM | Fixed: `StaleDataError` handled as 404 with rollback; regression test simulates the race | `tests/test_api.py` |
 | 2026-10-28 | CI | Scorecard | `publish_results` rejected: pinned SHA was the annotated-tag object, not a commit (`imposter commit`); same for codeql-action and sbom-action | LOW | Fixed: pins replaced by the commit behind each tag (`tag^{}`); pin helper fixed | PR #5 |
 | 2026-10-28 | SCA | Scorecard / OSV | 5 advisories in Semgrep's own pinned dependencies (mcp 1.29.0, opentelemetry-api 1.37) appeared after hash-pinning the SAST tools; not reachable from a CI scan (no MCP transport, no inbound tracestate) | MEDIUM (tooling) | Fixed: Semgrep now runs from the vendor's official image pinned by digest; `requirements-sast` removed; ZAP image pinned by digest for the same reason | PR #12 |
+| 2026-10-29 | Supply chain | Dependabot | 5 major bumps of SHA-pinned actions: setup-python 7.1.0, gitleaks-action 3.0.0, codeql upload-sarif v4 (v3 deprecated Dec 2026), download-artifact 8.0.2, cosign-installer 4.1.2 (Cosign 3.x). `upload-artifact` had no v8; moved to v7.0.2 by hand | — | Merged one at a time, each through the full pipeline; release on `main` re-signed with Cosign 3 and verified externally with Cosign 3.1.4 (signature and CycloneDX attestation) | PRs #5–#9, #13; run #58 |

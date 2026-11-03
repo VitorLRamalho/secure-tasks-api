@@ -5,7 +5,11 @@ updates:
     schedule:
       interval: weekly
     cooldown:
-      default-days: 7
+      default-days: 7     # espera 7 dias antes de propor versão recém-publicada (janela para a comunidade achar release maliciosa)
+    groups:
+      python-minor-patch:  # minor e patch chegam juntos em um PR; major continua um PR por dependência
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
   - package-ecosystem: docker
     directory: /
     schedule:
@@ -18,3 +22,7 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      actions-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]

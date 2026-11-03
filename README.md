@@ -92,7 +92,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt -r requirements-dev.txt
 pre-commit install
 cp .env.example .env            # then set APP_JWT_SECRET (32+ chars)
-pytest                          # 12 tests, coverage >= 80%
+pytest                          # 14 tests, coverage >= 80%; 30 s of atheris fuzzing runs in CI
 docker build --pull -t secure-tasks-api:dev .
 docker run --rm -p 8000:8000 -e APP_ENV=dev -e APP_JWT_SECRET="$(openssl rand -hex 32)" secure-tasks-api:dev
 ```
