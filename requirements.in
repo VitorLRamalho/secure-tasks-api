@@ -6,4 +6,3 @@ pydantic-settings
 pyjwt
 bcrypt
 python-multipart
-jinja2==3.1.2
