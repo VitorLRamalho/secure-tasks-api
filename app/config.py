@@ -15,6 +15,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
-# chave gerada aleatoriamente só para a demonstração; não é real
-AWS_ACCESS_KEY_ID = "AKIAZCJKLO37S4VRFSUH"
