@@ -122,3 +122,18 @@ def test_update_of_task_deleted_concurrently_is_404(client, monkeypatch):
     monkeypatch.setattr(Session, "commit", commit_after_concurrent_delete)
     response = client.put(f"/tasks/{task_id}", json={"title": "x"}, headers=ana)
     assert response.status_code == 404
+
+
+def test_search_is_parameterized(client):
+    """SQL injection: o parâmetro q nunca vira parte do SQL."""
+    vitor = _signup_and_login(client, "vitor@example.com")
+    bob = _signup_and_login(client, "bob@example.com")
+    client.post("/tasks", json={"title": "Segredo do Vitor"}, headers=vitor)
+    client.post("/tasks", json={"title": "Tarefa do Bob"}, headers=bob)
+
+    injected = client.get("/tasks/search", params={"q": "' OR 1=1--"}, headers=bob)
+    assert injected.status_code == 200
+    assert injected.json() == []
+
+    found = client.get("/tasks/search", params={"q": "Bob"}, headers=bob).json()
+    assert [t["title"] for t in found] == ["Tarefa do Bob"]

@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Path, Response, status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -68,7 +68,8 @@ def delete_task(task_id: TaskId, user: UserDep, db: DbDep) -> Response:
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/search")
-def search_tasks(q: str, user: UserDep, db: DbDep):
-    sql = f"SELECT id, title, done FROM tasks WHERE owner_id = {user.id} AND title LIKE '%{q}%'"
-    return [dict(row._mapping) for row in db.execute(text(sql))]
+@router.get("/search", response_model=list[TaskOut])
+def search_tasks(q: str, user: UserDep, db: DbDep) -> list[Task]:
+    pattern = f"%{q}%"  # o valor vira parâmetro; o SQL nunca é montado com o input
+    stmt = select(Task).where(Task.owner_id == user.id, Task.title.like(pattern))
+    return list(db.scalars(stmt))
