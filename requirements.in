@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
-sqlalchemy>=2.0
+sqlalchemy>=2.1.9
 pydantic[email]
 pydantic-settings
 pyjwt
